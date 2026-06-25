@@ -1,5 +1,5 @@
 -- ==========================================
--- TrackStat Logger: Grow A Garden 2
+-- TrackStat Logger Bulk (Watchlist Edition): Grow A Garden 2
 -- Place ID: 97598239454123
 -- ==========================================
 
@@ -12,18 +12,9 @@ end
 
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
-local LocalPlayer = Players.LocalPlayer
 
--- ==========================================
--- [PENGATURAN]
--- ==========================================
--- URL Web Privat Anda (Ganti dengan IP/Domain jika dihosting online)
+-- Ganti dengan IP/Domain jika dihosting online
 local WEBHOOK_URL = "http://localhost:3000/api/trackstat" 
-
--- Jika ingin melacak player lain, ketik username-nya di bawah ini.
--- Kosongkan ("") untuk melacak akun Anda sendiri (LocalPlayer).
-local TARGET_USERNAME = "" 
--- ==========================================
 
 local HTTP_REQUEST = (syn and syn.request) or (http and http.request) or http_request or (fluxus and fluxus.request) or request
 if not HTTP_REQUEST then
@@ -31,24 +22,9 @@ if not HTTP_REQUEST then
     return
 end
 
--- Fungsi mencari target player
-local function GetTargetPlayer()
-    if TARGET_USERNAME ~= "" then
-        for _, p in pairs(Players:GetPlayers()) do
-            if string.lower(p.Name) == string.lower(TARGET_USERNAME) or string.find(string.lower(p.Name), string.lower(TARGET_USERNAME)) then
-                return p
-            end
-        end
-        return nil -- Player tidak ditemukan di server
-    end
-    return LocalPlayer
-end
-
--- Fungsi membaca status dan isi tas player
 local function GetPlayerStats(player)
     local stats = {}
     
-    -- 1. Membaca Leaderstats (Sheckles, dll)
     if player:FindFirstChild("leaderstats") then
         for _, stat in pairs(player.leaderstats:GetChildren()) do
             if stat:IsA("ValueBase") then
@@ -57,7 +33,6 @@ local function GetPlayerStats(player)
         end
     end
     
-    -- 2. Membaca Backpack (Inventory)
     local backpackItems = {}
     if player:FindFirstChild("Backpack") then
         for _, item in pairs(player.Backpack:GetChildren()) do
@@ -67,7 +42,6 @@ local function GetPlayerStats(player)
         end
     end
     
-    -- Mengecek alat yang sedang dipegang di tangan (karena alat yg dipegang pindah ke Character)
     if player.Character then
         for _, item in pairs(player.Character:GetChildren()) do
             if item:IsA("Tool") then
@@ -76,7 +50,6 @@ local function GetPlayerStats(player)
         end
     end
     
-    -- Menggabungkan list tas menjadi satu teks
     if #backpackItems > 0 then
         stats["Backpack"] = table.concat(backpackItems, ", ")
     else
@@ -86,20 +59,21 @@ local function GetPlayerStats(player)
     return stats
 end
 
-local function SendStatData()
-    local targetPlayer = GetTargetPlayer()
-    if not targetPlayer then return end -- Skip jika target tidak ada di game
+local function SendBulkStatData()
+    local payload = {}
+    local timestamp = os.time()
     
-    local currentStats = GetPlayerStats(targetPlayer)
-    
-    local payload = {
-        username = targetPlayer.Name,
-        userId = targetPlayer.UserId,
-        placeId = game.PlaceId,
-        gameName = "Grow A Garden 2",
-        stats = currentStats,
-        timestamp = os.time()
-    }
+    -- Mengumpulkan data semua orang di server
+    for _, player in pairs(Players:GetPlayers()) do
+        table.insert(payload, {
+            username = player.Name,
+            userId = player.UserId,
+            placeId = game.PlaceId,
+            gameName = "Grow A Garden 2",
+            stats = GetPlayerStats(player),
+            timestamp = timestamp
+        })
+    end
 
     local success, response = pcall(function()
         return HTTP_REQUEST({
@@ -111,17 +85,16 @@ local function SendStatData()
     end)
 
     if success and response.Success then
-        print("[TrackStat] Data " .. targetPlayer.Name .. " berhasil dikirim!")
+        print("[TrackStat] Bulk Data (" .. #payload .. " pemain) berhasil dikirim!")
     else
-        warn("[TrackStat] Gagal mengirim data.")
+        warn("[TrackStat] Gagal mengirim bulk data.")
     end
 end
 
-print("[TrackStat] Memulai pelacakan untuk Grow A Garden 2 (Target: " .. (TARGET_USERNAME == "" and LocalPlayer.Name or TARGET_USERNAME) .. ")...")
+print("[TrackStat] Memulai pelacakan seluruh server untuk Grow A Garden 2...")
 
--- Loop pengiriman data (otomatis update setiap 15 detik)
 task.spawn(function()
     while task.wait(15) do 
-        SendStatData()
+        SendBulkStatData()
     end
 end)
