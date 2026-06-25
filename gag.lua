@@ -13,7 +13,7 @@ end
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
 
--- Ganti dengan IP/Domain jika dihosting online
+-- Ganti dengan IP/Domain web privat Anda jika dihosting online
 local WEBHOOK_URL = "http://localhost:3000/api/trackstat" 
 
 local HTTP_REQUEST = (syn and syn.request) or (http and http.request) or http_request or (fluxus and fluxus.request) or request
@@ -22,9 +22,11 @@ if not HTTP_REQUEST then
     return
 end
 
+-- Fungsi membaca status dan isi tas player
 local function GetPlayerStats(player)
     local stats = {}
     
+    -- 1. Membaca Leaderstats (Sheckles, dll)
     if player:FindFirstChild("leaderstats") then
         for _, stat in pairs(player.leaderstats:GetChildren()) do
             if stat:IsA("ValueBase") then
@@ -33,6 +35,7 @@ local function GetPlayerStats(player)
         end
     end
     
+    -- 2. Membaca Backpack (Inventory)
     local backpackItems = {}
     if player:FindFirstChild("Backpack") then
         for _, item in pairs(player.Backpack:GetChildren()) do
@@ -42,6 +45,7 @@ local function GetPlayerStats(player)
         end
     end
     
+    -- Mengecek alat yang sedang dipegang di tangan (karena alat yg dipegang pindah ke Character)
     if player.Character then
         for _, item in pairs(player.Character:GetChildren()) do
             if item:IsA("Tool") then
@@ -50,6 +54,7 @@ local function GetPlayerStats(player)
         end
     end
     
+    -- Menggabungkan list tas menjadi satu teks
     if #backpackItems > 0 then
         stats["Backpack"] = table.concat(backpackItems, ", ")
     else
@@ -93,6 +98,7 @@ end
 
 print("[TrackStat] Memulai pelacakan seluruh server untuk Grow A Garden 2...")
 
+-- Loop pengiriman data (otomatis update setiap 15 detik)
 task.spawn(function()
     while task.wait(15) do 
         SendBulkStatData()
